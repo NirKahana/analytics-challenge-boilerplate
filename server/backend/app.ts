@@ -62,6 +62,7 @@ app.use("/comments", commentRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/bankTransfers", bankTransferRoutes);
 app.use("/events", eventRoutes);
+
 app.get("/ping", (req: Request, res: Response) => {
   res.send("pong");
 });

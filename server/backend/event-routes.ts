@@ -3,11 +3,24 @@
 import express from "express";
 import { Request, Response } from "express";
 
+// interface dataArray {
+//   events: any,
+//   users: any,
+//   contacts: any,
+//   bankaccounts: any,
+//   transactions: any,
+//   likes: any,
+//   comments: any,
+//   notifications: any,
+//   banktransfers: any
+// }
+
 // some useful database functions in here:
 import {
 } from "./database";
 import { Event, weeklyRetentionObject } from "../../client/src/models/event";
 import { ensureAuthenticated, validateMiddleware } from "./helpers";
+import { getAllEvents, getAllEventsByFilter } from "./database";
 
 import {
   shortIdValidation,
@@ -15,6 +28,7 @@ import {
   userFieldsValidator,
   isUserValidator,
 } from "./validators";
+import { any } from "bluebird";
 const router = express.Router();
 
 // Routes
@@ -28,12 +42,15 @@ interface Filter {
 }
 
 router.get('/all', (req: Request, res: Response) => {
-  res.send('/all')
-    
+  res.send(getAllEvents())
 });
 
 router.get('/all-filtered', (req: Request, res: Response) => {
-  res.send('/all-filtered')
+  let params = req.query;
+  delete params.page;
+  delete params.limit;
+  let resposne = getAllEventsByFilter(params);
+  res.send(resposne);
 });
 
 router.get('/by-days/:offset', (req: Request, res: Response) => {

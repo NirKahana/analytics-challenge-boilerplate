@@ -145,6 +145,7 @@ export const getAllByObj = (entity: keyof DbSchema, query: object) => {
   return result;
 };
 
+
 // Search
 export const cleanSearchQuery = (query: string) => query.replace(/[^a-zA-Z0-9]/g, "");
 
@@ -154,27 +155,48 @@ export const setupSearch = curry((items: object[], options: {}, query: string) =
 });
 
 export const performSearch = (items: object[], options: {}, query: string) =>
-  flow(
-    cleanSearchQuery,
-    setupSearch(items, options),
-    map((result) => result.item)
+flow(
+  cleanSearchQuery,
+  setupSearch(items, options),
+  map((result) => result.item)
   )(query);
-
-export const searchUsers = (query: string) => {
-  const items = getAllUsers();
-  return performSearch(
-    items,
-    {
-      keys: ["firstName", "lastName", "username", "email", "phoneNumber"],
-    },
-    query
-  ) as User[];
-};
-
-export const removeUserFromResults = (userId: User["id"], results: User[]) =>
-  remove({ id: userId }, results);
-
-// convenience methods
+  
+  export const searchUsers = (query: string) => {
+    const items = getAllUsers();
+    return performSearch(
+      items,
+      {
+        keys: ["firstName", "lastName", "username", "email", "phoneNumber"],
+      },
+      query
+      ) as User[];
+    };
+    
+    export const removeUserFromResults = (userId: User["id"], results: User[]) =>
+    remove({ id: userId }, results);
+    
+    // convenience methods
+    
+    interface Filter {
+      sorting?: string; // '+date'/'-date'
+      type?: string; 
+      browser?: string;
+      search?: string;
+      offset?: number;
+    }
+// Event
+    export const getAllEvents = (): Event[] => db.get(EVENT_TABLE).value();
+    export const getAllEventsByFilter = (query: Filter): Event[] => {
+      const result = db
+        .get(EVENT_TABLE)
+        // @ts-ignore
+        .filter(query) //////////
+        .value();
+    
+      return result;
+    };
+// export const getEventsBy = (parametersObject: Filter): Event[] => getAllByObj(EVENT_TABLE, parametersObject);
+// export const getEventsFiltered = (filterParams: Filter): Event[] => db.get(EVENT_TABLE).value();
 
 // User
 export const getUserBy = (key: string, value: any) => getBy(USER_TABLE, key, value);
