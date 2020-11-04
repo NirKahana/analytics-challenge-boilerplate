@@ -186,17 +186,8 @@ flow(
     }
 // Event
     export const getAllEvents = (): Event[] => db.get(EVENT_TABLE).value();
-    export const getAllEventsByFilter = (query: Filter): Event[] => {
-      const result = db
-        .get(EVENT_TABLE)
-        // @ts-ignore
-        .filter(query) //////////
-        .value();
     
-      return result;
-    };
-// export const getEventsBy = (parametersObject: Filter): Event[] => getAllByObj(EVENT_TABLE, parametersObject);
-// export const getEventsFiltered = (filterParams: Filter): Event[] => db.get(EVENT_TABLE).value();
+    
 
 // User
 export const getUserBy = (key: string, value: any) => getBy(USER_TABLE, key, value);
