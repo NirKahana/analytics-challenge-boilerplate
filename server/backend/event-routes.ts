@@ -3,14 +3,17 @@
 import express from "express";
 import { Request, Response } from "express";
 import moment from 'moment';
+// import { group } from "lodash/fp";
 
 
 
 
 // some useful database functions in here:
 import {
-  getAllEvents
+  getAllEvents,
+  getDatesWithUniqueSessions
 } from "./database";
+import mockData from "../backend/__tests__/mock_data";
 import { Event, weeklyRetentionObject } from "../../client/src/models/event";
 import { ensureAuthenticated, validateMiddleware } from "./helpers";
 
@@ -24,6 +27,8 @@ import {
 import { all, any } from "bluebird";
 import { count, log } from "console";
 import { date } from "faker";
+import { session } from "passport";
+import { subtract, uniq } from "lodash";
 const router = express.Router();
 // other helper functions 
 const groupBy = (array: Array<any>, key: any ) => {
@@ -47,7 +52,9 @@ interface Filter {
 }
 
 router.get('/all', (req: Request, res: Response) => {
-  res.send(getAllEvents())
+  const allEvents = getAllEvents()
+  console.log(allEvents.length);
+  res.send(allEvents)
 });
 
 router.get('/all-filtered', (req: Request, res: Response) => {
@@ -89,39 +96,21 @@ router.get('/all-filtered', (req: Request, res: Response) => {
 });
 
 router.get('/by-days/:offset', (req: Request, res: Response) => {
-  let offset = req.params.offset || 0; /// 7 days, zero based
-  let allEvents = getAllEvents(); // An array of all the events
-  const eventsGroupedBySessionID = groupBy(allEvents, 'session_id'); // All unique session with their events;
-  interface sessionWithDate {
-    sessionID: string,
-    date: number | string
-  }
-  let sessionsArrayWithDates: sessionWithDate[] = [];
-  for (const session in eventsGroupedBySessionID) {
-    const sessionID = session; // the id of this session
-    const sessionDate = eventsGroupedBySessionID[session][0].date; // inside the array of events in this session, the date of the first event 
-    sessionsArrayWithDates.push({
-      sessionID: sessionID,
-      date: moment(sessionDate).format("MM/DD/YYYY")
-    })
-  }
-  const uniqueSessionsGroupedByDate = groupBy(sessionsArrayWithDates, "date");
-  let datesArray = [];
-  for (const sessionsDate in uniqueSessionsGroupedByDate) {
-    const date = sessionsDate;
-    const count = uniqueSessionsGroupedByDate[sessionsDate].length;
-    datesArray.push({
-      date,
-      count      
-    })
-  }
-  datesArray.sort((firstDate, secondDate):number => (Date.parse(firstDate.date) - Date.parse(secondDate.date)));
-  let endDate = moment().subtract(offset, 'days').format('MM/DD/YYYY');
-  let startDate = moment(endDate).subtract(7, 'days').format('MM/DD/YYYY');
-  datesArray = datesArray.filter(date => (Date.parse(date.date) > Date.parse(startDate)) && (Date.parse(date.date) <= Date.parse(endDate)))
-  res.send(datesArray)
-});
+  let offset = req.params.offset;
+  const datesWithUniqueSessionsCount = getDatesWithUniqueSessions(); // all days which had events, with the unique sessions count
+  const endDate = moment().subtract(offset, "days").format("L");     // today minus <offset> days
+  const startDate = moment(endDate).subtract(7, "days").format("L")  // endDate minus one week
 
+  
+  let weekArray = [];                                                // all days between startDate and endDate
+  for (let i = 0; i < 7; i++) {
+    const day = moment(startDate).add(i, 'days').format("L");        
+    let dayInDatesArray = (datesWithUniqueSessionsCount.find(date => date.date === day));
+    const count = (dayInDatesArray) ? dayInDatesArray.count : 0
+    weekArray.push({date: day, count: count})
+  }
+  res.send(weekArray);
+});
 
 router.get('/by-hours/:offset', (req: Request, res: Response) => {
   let offset = req.params.offset || 0; /// 7 days, zero based
@@ -164,21 +153,37 @@ router.get('/by-hours/:offset', (req: Request, res: Response) => {
 });
 
 router.get('/today', (req: Request, res: Response) => {
-  const today = moment();
-  const str = today.format("MM/DD/YYYY HH:mm:ss");
-  res.send(str)
+  let allEvents = getAllEvents(); // An array of all the events
+  const today = moment().format("L");
+  let todayEvents = allEvents.filter(event => moment(event.date).format("L") === today);
+  const todayStringEvents = todayEvents.map(event => ({
+    ...event,
+    date: moment(event.date).format("L")
+  }))
+  res.send(todayStringEvents)
 });
 
 router.get('/week', (req: Request, res: Response) => {
+  let allEvents = getAllEvents(); // An array of all the events
+  const today = moment().format("L");
+  let todayEvents = allEvents.filter(event => moment(event.date).format("L") === today);
+  const todayStringEvents = todayEvents.map(event => ({
+    ...event,
+    date: moment(event.date).format("L")
+  }));
+  res.send(todayStringEvents)
   res.send('/week')
 });
 
 router.get('/retention', (req: Request, res: Response) => {
-  const {dayZero} = req.query
+  const {dayZero} = req.query;
   res.send('/retention')
 });
 router.get('/:eventId',(req : Request, res : Response) => {
-  res.send('/:eventId')
+  const id = req.params.eventId;
+  let allEvents = getAllEvents(); // An array of all the events
+  const requiredEvent = allEvents.find(event => event._id === id);
+  res.send(requiredEvent)
 });
 
 router.post('/', (req: Request, res: Response) => {

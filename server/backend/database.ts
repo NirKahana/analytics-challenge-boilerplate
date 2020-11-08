@@ -20,6 +20,7 @@ import {
   remove,
   countBy,
   groupBy,
+  uniq
 } from "lodash/fp";
 import { isWithinInterval } from "date-fns";
 import low from "lowdb";
@@ -52,6 +53,8 @@ import {
   Event
 } from "../../client/src/models";
 import Fuse from "fuse.js";
+import moment from "moment";
+
 import {
   isPayment,
   getTransferAmount,
@@ -69,6 +72,10 @@ import {
   isCommentNotification,
 } from "../../client/src/utils/transactionUtils";
 import { DbSchema } from "../../client/src/models/db-schema";
+import { stringify } from "querystring";
+import { date } from "faker";
+import { values } from "lodash";
+import { session } from "passport";
 
 
 export type TDatabase = {
@@ -146,6 +153,7 @@ export const getAllByObj = (entity: keyof DbSchema, query: object) => {
 };
 
 
+
 // Search
 export const cleanSearchQuery = (query: string) => query.replace(/[^a-zA-Z0-9]/g, "");
 
@@ -185,9 +193,28 @@ flow(
       offset?: number;
     }
 // Event
-    export const getAllEvents = (): Event[] => db.get(EVENT_TABLE).value();
-    
-    
+  export const getAllEvents = (): any[] => getAllForEntity("events");
+
+  export const getDatesWithUniqueSessions = () => {
+    const eventsArray = getAllEvents();
+    const datesArray: {date: string, sessions: string[]}[] = [];
+    eventsArray.forEach(event => {
+      if (!datesArray.some(date => moment(date.date).format("L") === moment(event.date).format("L"))) {
+        datesArray.push({
+          date: moment(event.date).format("L"),
+          sessions: [event.session_id]
+        });
+      } else {
+        const dateIndex = datesArray.findIndex(date => moment(date.date).format("L") === moment(event.date).format("L"))
+        datesArray[dateIndex].sessions.some(sessionID => sessionID === event.session_id)
+        ? ""
+        : datesArray[dateIndex].sessions.push(event.session_id)
+      }
+    })
+    datesArray.sort((firstDate, secondDate) => Date.parse(firstDate.date) - Date.parse(secondDate.date));
+    const datesWithCount = datesArray.map(date => ({date: date.date, count: date.sessions.length}))
+    return datesWithCount
+  }
 
 // User
 export const getUserBy = (key: string, value: any) => getBy(USER_TABLE, key, value);
