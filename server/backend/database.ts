@@ -197,21 +197,30 @@ flow(
 
   export const getDatesWithUniqueSessions = () => {
     const eventsArray = getAllEvents();
-    const datesArray: {date: string, sessions: string[]}[] = [];
+    const datesArray: {date: string, sessions: string[]}[] = []; // an empty array, called datesArray 
     eventsArray.forEach(event => {
+      // If date doesn't already exist in datesArray, push it to datesArray.
       if (!datesArray.some(date => moment(date.date).format("L") === moment(event.date).format("L"))) {
         datesArray.push({
           date: moment(event.date).format("L"),
           sessions: [event.session_id]
         });
       } else {
+        // if date does already exist -
+
+        // find this date's Index
         const dateIndex = datesArray.findIndex(date => moment(date.date).format("L") === moment(event.date).format("L"))
-        datesArray[dateIndex].sessions.some(sessionID => sessionID === event.session_id)
-        ? ""
-        : datesArray[dateIndex].sessions.push(event.session_id)
+        // Check if this date already has this session
+        if (!datesArray[dateIndex].sessions.some(sessionID => sessionID === event.session_id)) {
+          // If not, add the session to this date:
+          datesArray[dateIndex].sessions.push(event.session_id)
+        }
       }
     })
-    datesArray.sort((firstDate, secondDate) => Date.parse(firstDate.date) - Date.parse(secondDate.date));
+
+    /// sort by date
+    // datesArray.sort((firstDate, secondDate) => Date.parse(firstDate.date) - Date.parse(secondDate.date));
+    // change the 'sessions' property to a 'count' property
     const datesWithCount = datesArray.map(date => ({date: date.date, count: date.sessions.length}))
     return datesWithCount
   }

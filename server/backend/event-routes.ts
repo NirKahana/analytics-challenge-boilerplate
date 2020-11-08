@@ -96,20 +96,12 @@ router.get('/all-filtered', (req: Request, res: Response) => {
 });
 
 router.get('/by-days/:offset', (req: Request, res: Response) => {
-  let offset = req.params.offset;
+  let offset = Number(req.params.offset);
   const datesWithUniqueSessionsCount = getDatesWithUniqueSessions(); // all days which had events, with the unique sessions count
-  const endDate = moment().subtract(offset, "days").format("L");     // today minus <offset> days
-  const startDate = moment(endDate).subtract(7, "days").format("L")  // endDate minus one week
-
-  
-  let weekArray = [];                                                // all days between startDate and endDate
-  for (let i = 0; i < 7; i++) {
-    const day = moment(startDate).add(i, 'days').format("L");        
-    let dayInDatesArray = (datesWithUniqueSessionsCount.find(date => date.date === day));
-    const count = (dayInDatesArray) ? dayInDatesArray.count : 0
-    weekArray.push({date: day, count: count})
-  }
-  res.send(weekArray);
+  const endIndex = datesWithUniqueSessionsCount.length-offset;
+  const startIndex = endIndex-7;
+  res.json(datesWithUniqueSessionsCount.slice(startIndex, endIndex))
+  // res.send(weekArray);
 });
 
 router.get('/by-hours/:offset', (req: Request, res: Response) => {
