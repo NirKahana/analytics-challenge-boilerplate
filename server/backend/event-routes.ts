@@ -26,7 +26,7 @@ import {
 } from "./validators";
 import { all, any } from "bluebird";
 import { count, log } from "console";
-import { date } from "faker";
+import { date, internet } from "faker";
 import { session } from "passport";
 import { subtract, uniq } from "lodash";
 const router = express.Router();
@@ -97,51 +97,43 @@ router.get('/all-filtered', (req: Request, res: Response) => {
 
 router.get('/by-days/:offset', (req: Request, res: Response) => {
   let offset = Number(req.params.offset);
-  const datesWithUniqueSessionsCount = getDatesWithUniqueSessions(); // all days which had events, with the unique sessions count
-  const endIndex = datesWithUniqueSessionsCount.length-offset;
+  const datesWithUniqueSessionsCount = getDatesWithUniqueSessions(); // all days which had events, with the unique sessions array
+  const datesWithCount = datesWithUniqueSessionsCount.map(date => ({date: date.date, count: date.sessions.length}))
+
+  const endIndex = datesWithCount.length-offset;
   const startIndex = endIndex-7;
-  res.json(datesWithUniqueSessionsCount.slice(startIndex, endIndex))
-  // res.send(weekArray);
+  // res.json(datesWithCount.slice(startIndex, endIndex))
+  res.send(datesWithUniqueSessionsCount)
 });
 
 router.get('/by-hours/:offset', (req: Request, res: Response) => {
-  let offset = req.params.offset || 0; /// 7 days, zero based
-  let allEvents = getAllEvents(); // An array of all the events
-  const eventsGroupedBySessionID = groupBy(allEvents, 'session_id'); // All unique session with their events;
-  interface sessionWithDate {
-    sessionID: string,
-    date: number | string
+  let offset = Number(req.params.offset) || 0;
+  const datesWithUniqueSessionsCount = getDatesWithUniqueSessions(); // all days which had events, with the unique sessions array
+  const day = moment().subtract(offset, "days").format("L");
+  const daySessions = datesWithUniqueSessionsCount.filter(date => date.date === day)[0].sessions;
+  interface hour {
+    hour: string,
+    sessions: string[]
   }
-  let sessionsArrayWithDates: sessionWithDate[] = [];
-  for (const session in eventsGroupedBySessionID) {
-    const sessionID = session; // the id of this session
-    const sessionDate = eventsGroupedBySessionID[session][0].date; // inside the array of events in this session, the date of the first event 
-    sessionsArrayWithDates.push({
-      sessionID: sessionID,
-      date: moment(sessionDate).startOf('hour').format("MM/DD/YYYY HH:mm:ss")
-    })
+  const hoursArray: hour[] = [];
+  daySessions.forEach(session => {
+    if (!hoursArray.some(hour => hour.hour === session.hour)) {
+      hoursArray.push({hour: session.hour, sessions: [session.session]})
+    } else {
+      const hourIndex: number = hoursArray.findIndex(hour => hour.hour === session.hour);
+      hoursArray[hourIndex].sessions.push(session.session);
+    }
+  })
+  const dayHours: {hour: string, count: number}[] = [];
+  for (let i = 0; i < 24; i++) {
+    const hourInHoursArray = hoursArray.find(hour => hour.hour === i.toString())
+    const count = (hourInHoursArray) ? hourInHoursArray.sessions.length : 0
+    dayHours[i] = {
+      hour: i.toString()+":00",
+      count: count
+    }
   }
-  const uniqueSessionsGroupedByDate = groupBy(sessionsArrayWithDates, "date");
-  let datesArray = [];
-  for (const sessionsDate in uniqueSessionsGroupedByDate) {
-    const date = sessionsDate;
-    const count = uniqueSessionsGroupedByDate[sessionsDate].length;
-    datesArray.push({
-      date,
-      count      
-    })
-  }
-  datesArray.sort((firstDate, secondDate):number => (Date.parse(firstDate.date) - Date.parse(secondDate.date)));
-  let endDate = (offset === "0") ? moment().startOf('hour').format('MM/DD/YYYY HH:mm:ss') :
-                moment().subtract(offset, 'days').startOf('day').add(23, 'hours').format('MM/DD/YYYY HH:mm:ss');
-  let startDate = (offset === "0") ? moment().startOf('day').format('MM/DD/YYYY HH:mm:ss') :
-                  moment(endDate).startOf('day').format('MM/DD/YYYY HH:mm:ss');
-  datesArray = datesArray.filter(date => (Date.parse(date.date) >= Date.parse(startDate)) && (Date.parse(date.date) <= Date.parse(endDate)) )
-  datesArray = datesArray.map((date) => ({
-    hour: moment(date.date).format("HH:mm"),
-    count: date.count
-  }))
-  res.send(datesArray)
+  res.send(dayHours)
 });
 
 router.get('/today', (req: Request, res: Response) => {
@@ -168,9 +160,83 @@ router.get('/week', (req: Request, res: Response) => {
 });
 
 router.get('/retention', (req: Request, res: Response) => {
-  const {dayZero} = req.query;
+  interface weeklyRetentionObject {
+    registrationWeek:number;  //launch is week 0 and so on
+    newUsers:number;  // how many new user have joined this week
+    weeklyRetention:number[]; // for every week since, what percentage of the users came back. weeklyRetention[0] is always 100% because it's the week of registration  
+    start:string;  //date string for the first day of the week
+    end:string  //date string for the first day of the week
+  }
+  let week0Retention : weeklyRetentionObject = {
+    registrationWeek: 1, // distance in weeks from dayzero + 1 
+    newUsers: 34, // number of signup Events within that week
+    weeklyRetention:[100,24,45],   
+    start:'19/10/2020', // dayZero + distance in weeks * week
+    end: '26/10/2020' // dayZero + (distance in weeks+1) * week || start + week
+  } 
+  let week1Retention : weeklyRetentionObject = {
+    registrationWeek: 2, // distance in weeks from dayzero + 1
+    newUsers: 51, 
+    weeklyRetention:[100,23],  
+    start:'26/10/2020',
+    end: '02/11/2020'
+  } 
+  let week2Retention : weeklyRetentionObject = {
+    registrationWeek: 3, // distance in weeks from dayzero + 1
+    newUsers: 34, 
+    weeklyRetention:[100],  
+    start:'02/11/2020',
+    end: '09/11/2020'
+  } 
+  /**
+   * 1.  Parse the dayZero and convert it to formated date of type DD/MM/YYYY
+   * 2.  Filter all events in order to find only sign-up events which occured on launch-week and save it to
+   *     a const called "newUsersArray"
+   * 3.  Save "newUsersArray" length as the newUsers value.
+   * 4.  group allEvents by week, starting from launch-week ****
+   * 5.  create an Array of weeks, called "eventsByWeeks" based on the grouped-allEvents, in which each item is an object, 
+   *     with a week-number as its key (1,2,3...) and an array of events as its value 
+   * 6.  create an empty array called "weeklyRetention" which takes numebrs
+   * 7.  start iterating through eventsByWeeks, and for each week:
+   * 8.  find the number of events which were triggered by users from "newUserArray"
+   *     and save it to a const called "returnedUsers"   
+   * 9.  push "returnedUsers".length to the 'weeklyRetention' Array
+   * 10. map weekly retention and for each number, divide the number by "newUsers" and multiply it by 100.
+   *  **/
+  let dayZero: any = Number(req.query.dayZero);
+  dayZero = moment(dayZero).startOf('day');
+  const today = moment().endOf('day');
+  // how far day zero from today in weeks
+  const numberOfWeeks = today.diff(dayZero, "weeks");
+  const globalUsersArray : Array<Array<string>> = [['AsA','asdasd','asdasd'],[],[]] // array that will hold all newusers id for each week  
+  /**
+   * for each week
+   * 
+   * get all the signup, take only the users id and push it to the global array
+   * get all signup length and put as newusers for that week
+   * 
+   * get all logins of that week - remove duplictae by userId
+   * thtaweekretensions = []
+   * loop:
+   * for each login determine which week he register and push to the counter for that week 
+   * Event(login) => Event.userId
+   * search in globalUsersArray which week that user belongs to
+   * 
+   * */ 
+  
+
+
+
+
+
+
+
   res.send('/retention')
 });
+
+
+
+
 router.get('/:eventId',(req : Request, res : Response) => {
   const id = req.params.eventId;
   let allEvents = getAllEvents(); // An array of all the events
