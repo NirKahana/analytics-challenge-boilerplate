@@ -233,7 +233,13 @@ flow(
     // change the 'sessions' property to a 'count' property
     return datesArray
   }
-
+  const saveEvent = (event: Event) => {
+    db.get(EVENT_TABLE).push(event).write();
+  };
+  export const createEvent = (event: Event): Event => {
+    saveEvent(event);
+    return event;
+  };
 // User
 export const getUserBy = (key: string, value: any) => getBy(USER_TABLE, key, value);
 export const getUserId = (user: User): string => user.id;
