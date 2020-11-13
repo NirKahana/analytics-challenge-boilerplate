@@ -16,26 +16,25 @@ import styled from 'styled-components';
 
 
 import {dateWithCount} from "../models/event"
-const initalDateValue = new Date(moment().subtract(6, 'days').format("L"));
 
 export default function ByDaysChart() {
 
-    const [week, setWeek] = useState<dateWithCount[]>([])
-    const [startDate, setStartDate] = useState<any>(new Date(initalDateValue));
+    const [day, setDay] = useState<dateWithCount[]>([])
+    const [startDate, setStartDate] = useState<any>(new Date());
 
     useEffect(() => {
         const diff = moment().diff(startDate, "days");
         const fetchEvents = async () => {
-            const week = (await axios.get(`/by-days/${diff}`)).data
-            setWeek(week)
+            const day = (await axios.get(`/by-hours/${diff}`)).data
+            setDay(day)
         }
         fetchEvents()
     },[])
     useEffect(() => {
         const updateWeek = async () => {
             const diff = moment().diff(startDate, "days");
-            const week = (await axios.get(`/by-days/${diff}`)).data
-            setWeek(week)
+            const day = (await axios.get(`/by-hours/${diff}`)).data
+            setDay(day)
         }
         updateWeek();
     },[startDate])
@@ -51,12 +50,12 @@ export default function ByDaysChart() {
     return (
         <>  
             <div>
-                <Title>Sessions (Days):</Title>
+                <Title>Sessions (Hours):</Title>
                 <Calendar 
                     selected={startDate} 
                     onChange={date => setStartDate(date)}
                 />
-                <LineChart width={850} height={325} data={week}>
+                <LineChart width={850} height={325} data={day}>
                     <Line
                       name={'sessions'}
                       type="monotone"
@@ -64,7 +63,7 @@ export default function ByDaysChart() {
                       stroke="blue"
                     />
                     <CartesianGrid stroke="black" />
-                    <XAxis dataKey="date" />
+                    <XAxis dataKey="hour" />
                     <YAxis />
                     <Tooltip />
                     <Legend />

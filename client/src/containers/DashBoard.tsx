@@ -3,6 +3,7 @@ import { Interpreter } from "xstate";
 import { AuthMachineContext, AuthMachineEvents } from "../machines/authMachine";
 import { makeStyles } from '@material-ui/core/styles';
 import ByDaysChart from "components/ByDaysChart";
+import ByHoursChart from "components/ByHoursChart";
 import Map from "components/Map";
 
 const useStyles = makeStyles({
@@ -20,6 +21,7 @@ const DashBoard: React.FC = () => {
     <>
       <Map />
       <ByDaysChart />
+      <ByHoursChart />
     </>
   );
 };

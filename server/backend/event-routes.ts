@@ -112,7 +112,8 @@ router.get('/by-hours/:offset', (req: Request, res: Response) => {
   let offset = Number(req.params.offset) || 0;
   const datesWithUniqueSessionsCount = getDatesWithUniqueSessions(); // all days which had events, with the unique sessions array
   const day = moment().subtract(offset, "days").format("L");
-  const daySessions = datesWithUniqueSessionsCount.filter(date => date.date === day)[0].sessions;
+  const dayWithSessions = datesWithUniqueSessionsCount.filter(date => date.date === day);
+  const daySessions = (dayWithSessions[0]) ? dayWithSessions[0].sessions : [];
   interface hour {
     hour: string,
     sessions: string[]
@@ -130,6 +131,7 @@ router.get('/by-hours/:offset', (req: Request, res: Response) => {
   for (let i = 0; i < 24; i++) {
     const hourInHoursArray = hoursArray.find(hour => hour.hour === i.toString())
     const count = (hourInHoursArray) ? hourInHoursArray.sessions.length : 0
+    
     dayHours[i] = {
       hour: i.toString()+":00",
       count: count
