@@ -39,11 +39,6 @@ export default function Map() {
         fetchEvents()
     },[])
 
-
-
-
-
-
     return eventsLocations ? (
         <LoadScript googleMapsApiKey={api_key}>
           <GoogleMap
