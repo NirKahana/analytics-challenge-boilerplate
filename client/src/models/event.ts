@@ -36,7 +36,3 @@ export interface RetentionCohort {
   search: string;
   offset: number;
 }
-export type dateWithCount = {
-  date: string;
-  count: number;
-}
